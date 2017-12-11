@@ -1,10 +1,11 @@
 var aes = require('browserify-aes')
 var assert = require('assert')
 var Buffer = require('safe-buffer').Buffer
-var bs58check = require('bs58check')
+var bs58check = require('bs58smartcheck')
 var createHash = require('create-hash')
 var scrypt = require('scryptsy')
 var xor = require('buffer-xor/inplace')
+var sha3 = require('js-sha3').keccak256
 
 var ecurve = require('ecurve')
 var curve = ecurve.getCurveByName('secp256k1')
@@ -25,17 +26,16 @@ function hash160 (buffer) {
   ).digest()
 }
 
-function hash256 (buffer) {
-  return createHash('sha256').update(
-    createHash('sha256').update(buffer).digest()
-  ).digest()
+function keccak256 (buffer) {
+  let tmp = new sha3.update(buffer)
+  return new Buffer(tmp.digest('hex'), 'hex')
 }
 
 function getAddress (d, compressed) {
   var Q = curve.G.multiply(d).getEncoded(compressed)
   var hash = hash160(Q)
   var payload = Buffer.allocUnsafe(21)
-  payload.writeUInt8(0x00, 0) // XXX TODO FIXME bitcoin only??? damn you BIP38
+  payload.writeUInt8(0x3F, 0)
   hash.copy(payload, 1)
 
   return bs58check.encode(payload)
@@ -48,7 +48,7 @@ function encryptRaw (buffer, compressed, passphrase, progressCallback, scryptPar
   var d = BigInteger.fromBuffer(buffer)
   var address = getAddress(d, compressed)
   var secret = Buffer.from(passphrase, 'utf8')
-  var salt = hash256(address).slice(0, 4)
+  var salt = keccak256(address).slice(0, 4)
 
   var N = scryptParams.N
   var r = scryptParams.r
@@ -118,7 +118,7 @@ function decryptRaw (buffer, passphrase, progressCallback, scryptParams) {
   // verify salt matches address
   var d = BigInteger.fromBuffer(privateKey)
   var address = getAddress(d, compressed)
-  var checksum = hash256(address).slice(0, 4)
+  var checksum = keccak256(address).slice(0, 4)
   assert.deepEqual(salt, checksum)
 
   return {
@@ -166,7 +166,7 @@ function decryptECMult (buffer, passphrase, progressCallback, scryptParams) {
   var passFactor
   if (hasLotSeq) {
     var hashTarget = Buffer.concat([preFactor, ownerEntropy])
-    passFactor = hash256(hashTarget)
+    passFactor = keccak256(hashTarget)
   } else {
     passFactor = preFactor
   }
@@ -193,7 +193,7 @@ function decryptECMult (buffer, passphrase, progressCallback, scryptParams) {
 
   var seedBPart1 = xor(decipher2.read(), derivedHalf1.slice(0, 16))
   var seedB = Buffer.concat([seedBPart1, seedBPart2], 24)
-  var factorB = BigInteger.fromBuffer(hash256(seedB))
+  var factorB = BigInteger.fromBuffer(keccak256(seedB))
 
   // d = passFactor * factorB (mod n)
   var d = passInt.multiply(factorB).mod(curve.n)
