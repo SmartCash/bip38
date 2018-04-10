@@ -1,6 +1,6 @@
 {
   "name": "bip38-smart",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "BIP38 is a standard process to encrypt Smatcash and crypto currency private keys that is impervious to brute force attacks thus protecting the user.",
   "main": "index.js",
   "keywords": [
@@ -18,7 +18,7 @@
     "buffer-xor": "^1.0.2",
     "create-hash": "^1.1.1",
     "ecurve": "^1.0.0",
-    "scryptsy": "^1.2.0",
+    "scryptsy": "^2.0.0",
     "js-sha3": "^0.7.0"
   },
   "devDependencies": {
